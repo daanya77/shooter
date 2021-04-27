@@ -1,0 +1,145 @@
+from pygame import *
+from random import randint
+from time import time as timer
+#класс-родитель для спрайтов
+class GameSprite(sprite.Sprite):
+    def __init__(self, player_image, w, h, player_x, player_y, player_speed):
+        super().__init__()
+        # каждый спрайт должен хранить свойство image - изображение
+        self.image = transform.scale(image.load(player_image), (w, h))
+        self.speed = player_speed
+        # каждый спрайт должен хранить свойство rect - прямоугольник, в который он вписан
+        self.rect = self.image.get_rect()
+        self.rect.x = player_x
+        self.rect.y = player_y
+    def reset(self):
+        window.blit(self.image, (self.rect.x, self.rect.y))
+
+class Player(GameSprite):
+    def update(self):
+        global frame
+        key_pressed = key.get_pressed()
+        if key_pressed[K_LEFT] and self.rect.x>5:
+            self.rect.x-=self.speed 
+        if key_pressed[K_RIGHT] and self.rect.x<715:
+            self.rect.x+=self.speed 
+
+    def fire(self):
+        bullet = Bullet('bullet.png', 12, 15, self.rect.centerx, self.rect.top, 8)
+        bullets.add(bullet)
+
+
+class Enemy(GameSprite):
+    def update(self):
+        global lost
+        self.rect.y+=self.speed
+        a = randint(0,0                 )
+        self.rect.x += a
+        if self.rect.y >595:
+            self.rect.x = randint(50,750)
+            self.rect.y = 0
+            lost += 1
+
+class Bullet(GameSprite):
+    def update(self):
+        self.rect.y-=self.speed
+        if self.rect.y<1:
+            self.kill()
+
+#Игровая сцена:
+window = display.set_mode((800, 600))
+display.set_caption("SpaceShooter")
+background = transform.scale(image.load("galaxy.jpg"), (800, 600))
+
+#создание спрайтов
+space_ship = Player('soldat.png', 90, 110, 380, 495, 5)
+group_ufo = sprite.Group()
+for i in range(6):
+    ufo = Enemy('robot_PNG79.png', 47, 63, randint(50,750), 0, randint(1,2))
+    group_ufo.add(ufo)
+vragi = sprite.Group()
+for i in range(2):
+    vrag = Enemy('vrag.png', 47, 63, randint(50,750), 0, randint(1,2))
+    vragi.add(vrag)
+bullets = sprite.Group()
+finish = False
+run = True
+clock = time.Clock()
+
+#музыка
+mixer.init()
+mixer.music.load('space.ogg')
+mixer.music.play()
+attack = mixer.Sound('fire.ogg')
+
+font.init()
+hp = 5
+win = font.SysFont('Arial', 70).render('YOU WIN!', True, (0, 255, 0))
+lose = font.SysFont('Arial', 70).render('YOU LOSE!', True, (255, 0, 0))
+new_time = timer()
+old_time = timer()
+text_hp= font.SysFont('Arial', 70).render('HP:' + str(hp), True, (250,0, 250))
+
+score = 0
+lost = 0
+
+while run:
+    for e in event.get():
+        if e.type == QUIT:
+            run = False
+        if e.type == KEYDOWN:
+            if e.key == K_SPACE:
+                space_ship.fire()
+
+    if not(finish):
+        window.blit(background,(0, 0))
+        space_ship.update()
+        space_ship.reset()
+
+        group_ufo.update()
+        group_ufo.draw(window)
+        vragi.update()
+        vragi.draw(window)
+
+        bullets.update()
+        bullets.draw(window)
+
+
+        if new_time - old_time>3:
+            hp-=1
+            old_time = timer()
+
+
+        if score>105:
+            finish = True
+            window.blit(background,(0, 0))
+            window.blit(win, (300, 250))
+
+
+        if new_time - old_time >3:
+            if sprite.groupcollide(group_ufo, bullets, True,) or sprite.spritecollide(space_ship, vragi, True):
+                hp-=1 
+                old_time - new_time
+
+            if hp<1 or lost>10:
+                finish = True
+                window.blit(background,(0, 0))
+                window.blit(win, (300, 250))
+                
+            
+
+        kill_list = sprite.groupcollide(group_ufo, bullets, True, True)
+        for i in kill_list:
+            ufo = Enemy('robot_PNG79.png', 47, 63, randint(50,750), 0, randint(1,2))
+            group_ufo.add(ufo)
+            score+=1
+
+        text = font.SysFont('Arial', 36).render("Счет: " + str(score), 1, (0, 255, 0))
+        window.blit(text, (10, 20))
+        text_lose = font.SysFont('Arial', 36).render("Пропущено: " + str(lost), 1, (255, 0, 0))
+        window.blit(text_lose, (10, 50))
+        window.blit(text_hp, (650, 25))
+
+        display.update()   
+    clock.tick(60)
+    new_time = timer()
